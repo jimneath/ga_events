@@ -39,7 +39,7 @@ module GaEvents
           body = body.gsub('</body>', %Q{<div data-ga-events="#{serialized}"></div></body>})
         end
         
-        response.write(fragment)
+        response.write(body)
         response.finish
       else
         [status, headers, body]
