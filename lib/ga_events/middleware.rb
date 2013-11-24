@@ -35,7 +35,7 @@ module GaEvents
           env[ActionDispatch::Flash::KEY] = flash_hash
 
         elsif is_html?(status, headers)
-          body = body.to_a.mapz do |fragment|
+          body = body.to_a.map do |fragment|
             fragment.gsub('</body>', %Q{<div data-ga-events="#{serialized}"></div></body>})
           end
         end
