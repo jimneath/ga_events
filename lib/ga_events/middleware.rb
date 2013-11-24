@@ -15,19 +15,19 @@ module GaEvents
       flash &&= flash['flashes'] if Rails::VERSION::MAJOR > 3
 
       GaEvents::List.init(flash && flash['ga_events'])
-      status, headers, body = @app.call(env)
+      status, headers, response = @app.call(env)
+      body = [*response.body].flatten
 
       if GaEvents::List.present?
-        response = Rack::Response.new([], status, headers)
         request = Rack::Request.new(env)
         
         # Can outgrow, headers might get too big
         serialized = GaEvents::List.to_s
         if request.xhr?
           # AJAX request
-          response.headers['X-GA-Events'] = serialized
+          headers['X-GA-Events'] = serialized
 
-        elsif response.redirection?
+        elsif (300..399).include?(status)
           # 30x/redirect? Then add event list to flash to survive the redirect.
           flash_hash = env[ActionDispatch::Flash::KEY]
           flash_hash ||= ActionDispatch::Flash::FlashHash.new
@@ -35,15 +35,11 @@ module GaEvents
           env[ActionDispatch::Flash::KEY] = flash_hash
 
         elsif is_html?(status, headers)
-          body = body.each.to_a.join if body.respond_to?(:each)
           body = body.gsub('</body>', %Q{<div data-ga-events="#{serialized}"></div></body>})
         end
-        
-        response.write(body)
-        response.finish
-      else
-        [status, headers, body]
       end
+      
+      Rack::Response.new(body, status, headers).finish
     end
 
     private
