@@ -15,12 +15,12 @@ module GaEvents
       flash &&= flash['flashes'] if Rails::VERSION::MAJOR > 3
 
       GaEvents::List.init(flash && flash['ga_events'])
-
       status, headers, body = @app.call(env)
-      response = Rack::Response.new([], status, headers)
-      request = Rack::Request.new(env)
 
       if GaEvents::List.present?
+        response = Rack::Response.new([], status, headers)
+        request = Rack::Request.new(env)
+        
         # Can outgrow, headers might get too big
         serialized = GaEvents::List.to_s
         if request.xhr?
@@ -35,17 +35,15 @@ module GaEvents
           env[ActionDispatch::Flash::KEY] = flash_hash
 
         elsif is_html?(status, headers)
-          body = body.to_a.map do |fragment|
-            fragment.gsub('</body>', %Q{<div data-ga-events="#{serialized}"></div></body>})
-          end
+          body = body.each.to_a.join if body.respond_to?(:each)
+          body = body.gsub('</body>', %Q{<div data-ga-events="#{serialized}"></div></body>})
         end
-      end
-
-      body.each do |fragment|
+        
         response.write(fragment)
+        response.finish
+      else
+        [status, headers, body]
       end
-      
-      response.finish
     end
 
     private
